@@ -202,4 +202,29 @@ def get_cart(
             detail="Cart not found or cart is empty"
         )
 
-    return items 
+    return items
+@router.delete("/{cart_id}/items/{cart_item_id}")
+def remove_cart_item(
+    cart_id: uuid.UUID,
+    cart_item_id: int,
+    db: Session = Depends(get_db)
+):
+    cart_item = db.query(CartItem).filter(
+        CartItem.cart_id == cart_id,
+        CartItem.cart_item_id == cart_item_id
+    ).first()
+
+    if not cart_item:
+        raise HTTPException(
+            status_code=404,
+            detail="Cart item not found"
+        )
+
+    db.delete(cart_item)
+    db.commit()
+
+    return {
+        "message": "Cart item removed successfully",
+        "cart_item_id": cart_item_id,
+        "cart_id": str(cart_id)
+    } 
