@@ -102,3 +102,98 @@ def get_basket(
         )
 
     return basket
+class BasketStatusUpdate(BaseModel):
+    basket_status: str
+
+
+@router.put("/{basket_id}/status")
+def update_basket_status(
+    basket_id: int,
+    data: BasketStatusUpdate,
+    db: Session = Depends(get_db)
+):
+    basket = (
+        db.query(Basket)
+        .filter(Basket.basket_id == basket_id)
+        .first()
+    )
+
+    if not basket:
+        raise HTTPException(
+            status_code=404,
+            detail="Basket not found"
+        )
+
+    allowed_statuses = [
+        "available",
+        "in_use",
+        "maintenance",
+        "offline"
+    ]
+
+    if data.basket_status not in allowed_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid basket status"
+        )
+
+    basket.basket_status = data.basket_status
+
+    db.commit()
+    db.refresh(basket)
+
+    return {
+        "message": "Basket status updated successfully",
+        "basket_id": basket.basket_id,
+        "basket_number": basket.basket_number,
+        "basket_status": basket.basket_status
+    }
+class BasketAssignment(BaseModel):
+    user_id: int
+
+
+@router.post("/{basket_id}/assign")
+def assign_basket(
+    basket_id: int,
+    assignment: BasketAssignment,
+    db: Session = Depends(get_db)
+):
+    basket = db.query(Basket).filter(
+        Basket.basket_id == basket_id
+    ).first()
+
+    if not basket:
+        raise HTTPException(
+            status_code=404,
+            detail="Basket not found"
+        )
+
+    user = db.query(User).filter(
+        User.user_id == assignment.user_id
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    if basket.basket_status != "available":
+        raise HTTPException(
+            status_code=400,
+            detail="Basket is not available"
+        )
+
+    basket.current_user_id = assignment.user_id
+    basket.basket_status = "in_use"
+
+    db.commit()
+    db.refresh(basket)
+
+    return {
+        "message": "Basket assigned successfully",
+        "basket_id": basket.basket_id,
+        "basket_number": basket.basket_number,
+        "current_user_id": basket.current_user_id,
+        "basket_status": basket.basket_status
+    }
