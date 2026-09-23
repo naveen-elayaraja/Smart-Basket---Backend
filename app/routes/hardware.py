@@ -288,12 +288,12 @@ def open_servo(
         db
     )
 
-    # 90 degrees = OPEN
-    servo.current_value = 90
+    # 120 degrees = OPEN
+    servo.current_value = 120
 
     metadata = {
         "action": "open",
-        "servo_position": 90,
+        "servo_position": 120,
         "product_id": data.product_id
     }
 
