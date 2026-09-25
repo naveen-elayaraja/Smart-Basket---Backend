@@ -339,6 +339,11 @@ def close_servo(
             status_code=404,
             detail="Basket not found"
         )
+    if basket.basket_status != "in_use":
+        raise HTTPException(
+            status_code=400,
+            detail="Basket is not currently in use"
+    )
 
     servo = get_servo(
         data.basket_id,
