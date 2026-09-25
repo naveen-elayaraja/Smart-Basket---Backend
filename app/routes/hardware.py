@@ -261,7 +261,11 @@ def get_servo(
 # OPEN SERVO
 # ============================================================
 
-@router.post("/servo/open")
+@router.post(
+    "/servo/open",
+    summary="Open servo door",
+    description="Opens the basket servo door to the configured 120-degree position."
+)
 def open_servo(
     data: ServoCommand,
     db: Session = Depends(get_db)
@@ -324,7 +328,11 @@ def open_servo(
 # CLOSE SERVO
 # ============================================================
 
-@router.post("/servo/close")
+@router.post(
+    "/servo/close",
+    summary="Close servo door",
+    description="Closes the basket servo door to the 0-degree position."
+)
 def close_servo(
     data: ServoCommand,
     db: Session = Depends(get_db)
@@ -389,7 +397,11 @@ class LoadCellUpdate(BaseModel):
     measured_weight: float
 
 
-@router.post("/load-cell/update")
+@router.post(
+    "/load-cell/update",
+    summary="Update load cell reading",
+    description="Updates the basket's measured weight using the connected load cell."
+)
 def update_load_cell(
     data: LoadCellUpdate,
     db: Session = Depends(get_db)
