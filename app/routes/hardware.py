@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.database import get_db
 from app.models import EventLog, Basket, Product, BasketModule
@@ -394,7 +394,7 @@ def close_servo(
 
 class LoadCellUpdate(BaseModel):
     basket_id: int
-    measured_weight: float
+    measured_weight: float = Field(ge=0)
 
 
 @router.post(
