@@ -85,7 +85,7 @@ def create_hardware_event(
 # ============================================================
 
 class WeightVerification(BaseModel):
-    basket_id: int
+    basket_id: int = Field(ge=1)
     product_id: int
     measured_weight: float = Field(ge=0)
 
