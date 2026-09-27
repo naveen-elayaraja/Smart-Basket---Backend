@@ -87,7 +87,7 @@ def create_hardware_event(
 class WeightVerification(BaseModel):
     basket_id: int
     product_id: int
-    measured_weight: float
+    measured_weight: float = Field(ge=0)
 
 
 @router.post("/verify-weight")
