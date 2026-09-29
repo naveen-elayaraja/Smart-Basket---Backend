@@ -220,6 +220,12 @@ def update_payment(
     # return the basket to available status
     if payment.payment_status == "successful":
 
+        if not payment.payment_reference:
+            raise HTTPException(
+                status_code=400,
+                detail="Payment reference is required for successful payment"
+            )
+
         basket = db.query(Basket).filter(
             Basket.basket_id == transaction.basket_id
         ).first()
