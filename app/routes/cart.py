@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.database import get_db
 from app.models import CartItem, User, Basket, Product
@@ -19,7 +19,7 @@ class CartItemCreate(BaseModel):
     user_id: int
     basket_id: int
     product_id: int
-    quantity: int = 1
+    quantity: int = Field(default=1, ge=1)
 
 
 @router.post("/items")
