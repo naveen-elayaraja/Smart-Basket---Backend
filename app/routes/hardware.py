@@ -137,6 +137,14 @@ def verify_weight(
     weight_verified = (
         minimum_weight <= measured_weight <= maximum_weight
     )
+    weight_difference = abs(
+    measured_weight - expected_weight
+)
+
+    weight_difference_percent = (
+        (weight_difference / expected_weight) * 100
+        if expected_weight > 0 else 0
+    )
 
     if weight_verified:
 
@@ -164,6 +172,8 @@ def verify_weight(
         "product_name": product.product_name,
         "expected_weight": expected_weight,
         "measured_weight": measured_weight,
+        "weight_difference": weight_difference,
+        "weight_difference_percent": weight_difference_percent,
         "tolerance_percent": tolerance_percent,
         "minimum_accepted_weight": minimum_weight,
         "maximum_accepted_weight": maximum_weight,
