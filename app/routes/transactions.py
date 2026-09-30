@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
+from typing import Literal
 
 from app.database import get_db
 from app.models import Transaction, CartItem, User, Basket, Product
@@ -171,7 +172,12 @@ def get_transaction(
 # ============================================================
 
 class PaymentUpdate(BaseModel):
-    payment_status: str
+    payment_status: Literal[
+        "pending",
+        "successful",
+        "failed",
+        "cancelled"
+    ]
     payment_reference: str | None = Field(default=None, min_length=1)
 
 
