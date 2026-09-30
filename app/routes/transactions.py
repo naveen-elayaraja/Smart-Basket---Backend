@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.database import get_db
 from app.models import Transaction, CartItem, User, Basket, Product
@@ -172,7 +172,7 @@ def get_transaction(
 
 class PaymentUpdate(BaseModel):
     payment_status: str
-    payment_reference: str | None = None
+    payment_reference: str | None = Field(default=None, min_length=1)
 
 
 # ============================================================
