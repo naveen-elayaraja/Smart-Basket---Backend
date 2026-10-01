@@ -429,11 +429,11 @@ def update_load_cell(
         Basket.basket_id == data.basket_id
     ).first()
 
-    if not basket:
+    if basket.basket_status != "in_use":
         raise HTTPException(
-            status_code=404,
-            detail="Basket not found"
-        )
+            status_code=400,
+            detail="Basket is not currently in use"
+    )
 
     # --------------------------------------------------------
     # 2. Find Load Cell
