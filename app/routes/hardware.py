@@ -86,7 +86,7 @@ def create_hardware_event(
 
 class WeightVerification(BaseModel):
     basket_id: int = Field(ge=1)
-    product_id: int = Field(ge=1)   
+    product_id: int = Field(ge=1)
     measured_weight: float = Field(ge=0)
 
 
@@ -137,9 +137,10 @@ def verify_weight(
     weight_verified = (
         minimum_weight <= measured_weight <= maximum_weight
     )
+
     weight_difference = abs(
-    measured_weight - expected_weight
-)
+        measured_weight - expected_weight
+    )
 
     weight_difference_percent = (
         (weight_difference / expected_weight) * 100
@@ -357,11 +358,12 @@ def close_servo(
             status_code=404,
             detail="Basket not found"
         )
+
     if basket.basket_status != "in_use":
         raise HTTPException(
             status_code=400,
             detail="Basket is not currently in use"
-    )
+        )
 
     servo = get_servo(
         data.basket_id,
@@ -398,6 +400,8 @@ def close_servo(
         "product_id": data.product_id,
         "event_id": event.event_id
     }
+
+
 # ============================================================
 # LOAD CELL UPDATE
 # ============================================================
@@ -467,6 +471,7 @@ def update_load_cell(
     # --------------------------------------------------------
 
     load_cell.current_value = data.measured_weight
+    basket.current_weight = data.measured_weight
 
     # Update last communication time
     from sqlalchemy import func
