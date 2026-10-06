@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from app.database import get_db
 from app.models import Basket, User
-
+from app.state_machine import TrolleyState, transition
 
 router = APIRouter(
     prefix="/baskets",
@@ -151,6 +151,8 @@ def update_basket_status(
 class BasketAssignment(BaseModel):
     user_id: int
 
+class BasketStateTransition(BaseModel):
+    next_state: TrolleyState
 
 @router.post("/{basket_id}/assign")
 def assign_basket(
@@ -196,4 +198,69 @@ def assign_basket(
         "basket_number": basket.basket_number,
         "current_user_id": basket.current_user_id,
         "basket_status": basket.basket_status
+    }
+@router.get("/{basket_id}/state")
+def get_basket_state(
+    basket_id: int,
+    db: Session = Depends(get_db)
+):
+    basket = db.query(Basket).filter(
+        Basket.basket_id == basket_id
+    ).first()
+
+    if not basket:
+        raise HTTPException(
+            status_code=404,
+            detail="Basket not found"
+        )
+
+    return {
+        "basket_id": basket.basket_id,
+        "basket_number": basket.basket_number,
+        "basket_status": basket.basket_status,
+        "current_state": basket.current_state
+    }
+
+
+@router.post("/{basket_id}/state/transition")
+def transition_basket_state(
+    basket_id: int,
+    data: BasketStateTransition,
+    db: Session = Depends(get_db)
+):
+    basket = db.query(Basket).filter(
+        Basket.basket_id == basket_id
+    ).first()
+
+    if not basket:
+        raise HTTPException(
+            status_code=404,
+            detail="Basket not found"
+        )
+
+    try:
+        current_state = TrolleyState(basket.current_state)
+
+        new_state = transition(
+            current_state,
+            data.next_state
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
+    basket.current_state = new_state.value
+
+    db.commit()
+    db.refresh(basket)
+
+    return {
+        "message": "Basket state transitioned successfully",
+        "basket_id": basket.basket_id,
+        "basket_number": basket.basket_number,
+        "previous_state": current_state.value,
+        "current_state": basket.current_state
     }

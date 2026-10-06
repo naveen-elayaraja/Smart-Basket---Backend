@@ -40,6 +40,7 @@ class Basket(Base):
     connection_status = Column(String(20), nullable=False, default="offline")
     current_location = Column(String(150))
     basket_status = Column(String(20), nullable=False, default="available")
+    current_state = Column(String(50), nullable=False, default="idle")
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 

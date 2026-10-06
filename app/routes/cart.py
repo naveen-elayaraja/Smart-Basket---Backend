@@ -22,6 +22,10 @@ class CartItemCreate(BaseModel):
     quantity: int = Field(default=1, ge=1)
 
 
+class CartItemUpdate(BaseModel):
+    quantity: int = Field(..., ge=1)
+
+
 @router.post("/items")
 def add_cart_item(
     item: CartItemCreate,
@@ -203,6 +207,75 @@ def get_cart(
         )
 
     return items
+
+
+@router.patch("/{cart_id}/items/{cart_item_id}")
+def update_cart_item_quantity(
+    cart_id: uuid.UUID,
+    cart_item_id: int,
+    item: CartItemUpdate,
+    db: Session = Depends(get_db)
+):
+    # ---------------------------------------------------------
+    # 1. Find cart item
+    # ---------------------------------------------------------
+    cart_item = db.query(CartItem).filter(
+        CartItem.cart_id == cart_id,
+        CartItem.cart_item_id == cart_item_id
+    ).first()
+
+    if not cart_item:
+        raise HTTPException(
+            status_code=404,
+            detail="Cart item not found"
+        )
+
+    # ---------------------------------------------------------
+    # 2. Check product
+    # ---------------------------------------------------------
+    product = db.query(Product).filter(
+        Product.product_id == cart_item.product_id
+    ).first()
+
+    if not product:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found"
+        )
+
+    # ---------------------------------------------------------
+    # 3. Check stock
+    # ---------------------------------------------------------
+    if item.quantity > product.stock_quantity:
+        raise HTTPException(
+            status_code=400,
+            detail="Insufficient product stock"
+        )
+
+    # ---------------------------------------------------------
+    # 4. Update exact quantity
+    # ---------------------------------------------------------
+    cart_item.quantity = item.quantity
+    cart_item.weight = product.weight * item.quantity
+
+    db.commit()
+    db.refresh(cart_item)
+
+    return {
+        "message": "Cart item quantity updated successfully",
+        "cart_item_id": cart_item.cart_item_id,
+        "cart_id": str(cart_item.cart_id),
+        "user_id": cart_item.user_id,
+        "basket_id": cart_item.basket_id,
+        "product_id": cart_item.product_id,
+        "product_name": cart_item.product_name,
+        "quantity": cart_item.quantity,
+        "unit_price": cart_item.unit_price,
+        "discount_percent": cart_item.discount_percent,
+        "weight": cart_item.weight
+    }
+
+
 @router.delete("/{cart_id}/items/{cart_item_id}")
 def remove_cart_item(
     cart_id: uuid.UUID,
@@ -227,4 +300,5 @@ def remove_cart_item(
         "message": "Cart item removed successfully",
         "cart_item_id": cart_item_id,
         "cart_id": str(cart_id)
-    } 
+    }
+

@@ -46,6 +46,8 @@ CREATE TABLE baskets (
 
     basket_status VARCHAR(20) NOT NULL DEFAULT 'available'
         CHECK (basket_status IN ('available', 'in_use', 'maintenance', 'offline')),
+    
+    current_state VARCHAR(50) NOT NULL DEFAULT 'idle',
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
