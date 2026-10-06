@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
+from app.state_machine import TrolleyState, transition
 
 from app.database import get_db
 from app.models import EventLog, Basket, Product, BasketModule
@@ -298,13 +299,56 @@ def open_servo(
             detail="Basket is not currently in use"
         )
 
+    try:
+        current_state = TrolleyState(basket.current_state)
+
+    except ValueError:
+        raise HTTPException(
+            status_code=500,
+            detail="Basket has an invalid trolley state"
+        )
+
+    allowed_open_states = {
+        TrolleyState.CAMERA_VERIFYING_ADD,
+        TrolleyState.CAMERA_VERIFYING_REMOVAL,
+    }
+
+    if current_state not in allowed_open_states:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Servo cannot open from current state: "
+                f"{current_state.value}"
+            )
+        )
+
     servo = get_servo(
         data.basket_id,
         db
     )
 
+    try:
+        new_state = transition(
+            current_state,
+            TrolleyState.SERVO_OPENING
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
+    basket.current_state = new_state.value
+
     # 120 degrees = OPEN
     servo.current_value = 120
+
+    if current_state == TrolleyState.CAMERA_VERIFYING_ADD:
+        basket.current_state = TrolleyState.WAITING_FOR_ADD.value
+
+    elif current_state == TrolleyState.CAMERA_VERIFYING_REMOVAL:
+        basket.current_state = TrolleyState.WAITING_FOR_REMOVAL.value
 
     metadata = {
         "action": "open",
@@ -365,6 +409,24 @@ def close_servo(
             detail="Basket is not currently in use"
         )
 
+    try:
+        current_state = TrolleyState(basket.current_state)
+
+    except ValueError:
+        raise HTTPException(
+            status_code=500,
+            detail="Basket has an invalid trolley state"
+        )
+
+    if current_state != TrolleyState.SERVO_CLOSING:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Servo cannot close from current state: "
+                f"{current_state.value}"
+            )
+        )
+
     servo = get_servo(
         data.basket_id,
         db
@@ -372,6 +434,7 @@ def close_servo(
 
     # 0 degrees = CLOSED
     servo.current_value = 0
+    basket.current_state = TrolleyState.SHOPPING.value
 
     metadata = {
         "action": "close",
