@@ -5,8 +5,8 @@
 // Wi-Fi Configuration
 // ============================================================
 
-const char* WIFI_SSID = "Infinix NOTE 40X 5G";
-const char* WIFI_PASSWORD = "sanlok2130";
+const char* WIFI_SSID = "1028";
+const char* WIFI_PASSWORD = "/;/'/;/'";
 
 // ============================================================
 // Web Server
