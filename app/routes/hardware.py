@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from app.state_machine import TrolleyState, transition
+from app.services.esp32_client import send_servo_command
 
 from app.database import get_db
 from app.models import EventLog, Basket, Product, BasketModule
@@ -273,25 +274,22 @@ def get_servo(
 # OPEN SERVO
 # ============================================================
 
+
 @router.post(
     "/servo/open",
     summary="Open servo door",
-    description="Opens the basket servo door to the configured 120-degree position."
+    description="Commands the ESP32 to open the basket servo door."
 )
 def open_servo(
     data: ServoCommand,
     db: Session = Depends(get_db)
 ):
-
     basket = db.query(Basket).filter(
         Basket.basket_id == data.basket_id
     ).first()
 
     if not basket:
-        raise HTTPException(
-            status_code=404,
-            detail="Basket not found"
-        )
+        raise HTTPException(status_code=404, detail="Basket not found")
 
     if basket.basket_status != "in_use":
         raise HTTPException(
@@ -301,67 +299,61 @@ def open_servo(
 
     try:
         current_state = TrolleyState(basket.current_state)
-
     except ValueError:
         raise HTTPException(
             status_code=500,
             detail="Basket has an invalid trolley state"
         )
 
-    allowed_open_states = {
+    allowed_states = {
         TrolleyState.CAMERA_VERIFYING_ADD,
         TrolleyState.CAMERA_VERIFYING_REMOVAL,
     }
 
-    if current_state not in allowed_open_states:
+    if current_state not in allowed_states:
         raise HTTPException(
             status_code=400,
-            detail=(
-                f"Servo cannot open from current state: "
-                f"{current_state.value}"
-            )
+            detail=f"Servo cannot open from current state: {current_state.value}"
         )
 
-    servo = get_servo(
-        data.basket_id,
-        db
-    )
+    servo = get_servo(data.basket_id, db)
 
     try:
         new_state = transition(
             current_state,
             TrolleyState.SERVO_OPENING
         )
-
     except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+    try:
+        controller_response = send_servo_command("open", servo=1)
+    except RuntimeError as error:
         raise HTTPException(
-            status_code=400,
-            detail=str(error)
+            status_code=503,
+            detail=f"ESP32 servo command failed: {error}"
         )
 
-    basket.current_state = new_state.value
+    basket.current_state = (
+        TrolleyState.WAITING_FOR_ADD.value
+        if current_state == TrolleyState.CAMERA_VERIFYING_ADD
+        else TrolleyState.WAITING_FOR_REMOVAL.value
+    )
 
-    # 120 degrees = OPEN
     servo.current_value = 120
-
-    if current_state == TrolleyState.CAMERA_VERIFYING_ADD:
-        basket.current_state = TrolleyState.WAITING_FOR_ADD.value
-
-    elif current_state == TrolleyState.CAMERA_VERIFYING_REMOVAL:
-        basket.current_state = TrolleyState.WAITING_FOR_REMOVAL.value
-
-    metadata = {
-        "action": "open",
-        "servo_position": 120,
-        "product_id": data.product_id
-    }
 
     event = EventLog(
         user_id=basket.current_user_id,
         basket_id=basket.basket_id,
-        event_type="servo_opened",
-        event_description="Servo door opened",
-        event_metadata=metadata
+        event_type="servo_open_command_accepted",
+        event_description="ESP32 acknowledged the servo open command",
+        event_metadata={
+            "action": "open",
+            "servo_position": 120,
+            "servo_channel": 1,
+            "product_id": data.product_id,
+            "controller_response": controller_response,
+        }
     )
 
     db.add(event)
@@ -369,39 +361,37 @@ def open_servo(
     db.refresh(event)
 
     return {
-        "message": "Servo opened successfully",
+        "message": "ESP32 acknowledged the servo open command",
         "basket_id": basket.basket_id,
         "module_id": servo.module_id,
         "module_identifier": servo.module_identifier,
-        "servo_position": float(servo.current_value),
+        "servo_position": 120,
         "product_id": data.product_id,
-        "event_id": event.event_id
+        "event_id": event.event_id,
     }
+
 
 
 # ============================================================
 # CLOSE SERVO
 # ============================================================
 
+
 @router.post(
     "/servo/close",
     summary="Close servo door",
-    description="Closes the basket servo door to the 0-degree position."
+    description="Commands the ESP32 to close the basket servo door."
 )
 def close_servo(
     data: ServoCommand,
     db: Session = Depends(get_db)
 ):
-
     basket = db.query(Basket).filter(
         Basket.basket_id == data.basket_id
     ).first()
 
     if not basket:
-        raise HTTPException(
-            status_code=404,
-            detail="Basket not found"
-        )
+        raise HTTPException(status_code=404, detail="Basket not found")
 
     if basket.basket_status != "in_use":
         raise HTTPException(
@@ -411,7 +401,6 @@ def close_servo(
 
     try:
         current_state = TrolleyState(basket.current_state)
-
     except ValueError:
         raise HTTPException(
             status_code=500,
@@ -421,33 +410,34 @@ def close_servo(
     if current_state != TrolleyState.SERVO_CLOSING:
         raise HTTPException(
             status_code=400,
-            detail=(
-                f"Servo cannot close from current state: "
-                f"{current_state.value}"
-            )
+            detail=f"Servo cannot close from current state: {current_state.value}"
         )
 
-    servo = get_servo(
-        data.basket_id,
-        db
-    )
+    servo = get_servo(data.basket_id, db)
 
-    # 0 degrees = CLOSED
+    try:
+        controller_response = send_servo_command("close", servo=1)
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=503,
+            detail=f"ESP32 servo command failed: {error}"
+        )
+
     servo.current_value = 0
     basket.current_state = TrolleyState.SHOPPING.value
-
-    metadata = {
-        "action": "close",
-        "servo_position": 0,
-        "product_id": data.product_id
-    }
 
     event = EventLog(
         user_id=basket.current_user_id,
         basket_id=basket.basket_id,
-        event_type="servo_closed",
-        event_description="Servo door closed",
-        event_metadata=metadata
+        event_type="servo_close_command_accepted",
+        event_description="ESP32 acknowledged the servo close command",
+        event_metadata={
+            "action": "close",
+            "servo_position": 0,
+            "servo_channel": 1,
+            "product_id": data.product_id,
+            "controller_response": controller_response,
+        }
     )
 
     db.add(event)
@@ -455,14 +445,15 @@ def close_servo(
     db.refresh(event)
 
     return {
-        "message": "Servo closed successfully",
+        "message": "ESP32 acknowledged the servo close command",
         "basket_id": basket.basket_id,
         "module_id": servo.module_id,
         "module_identifier": servo.module_identifier,
-        "servo_position": float(servo.current_value),
+        "servo_position": 0,
         "product_id": data.product_id,
-        "event_id": event.event_id
+        "event_id": event.event_id,
     }
+
 
 
 # ============================================================
