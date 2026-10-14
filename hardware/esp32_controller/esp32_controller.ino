@@ -113,11 +113,6 @@ void setup() {
   Serial.println("================================");
 
   // Initialize Servo 1 only
-  servo1.setPeriodHertz(50);
-  servo1.attach(SERVO1_PIN, 500, 2400);
-  servo1.write(CLOSED_ANGLE);
-
-  Serial.println("Servo 1 attached to GPIO18");
 
   // Connect to Wi-Fi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -134,6 +129,22 @@ void setup() {
 
   Serial.print("ESP32 IP address: ");
   Serial.println(WiFi.localIP());
+
+    // Initialize Servo 1 after Wi-Fi connection
+  servo1.setPeriodHertz(50);
+
+  int attachResult = servo1.attach(SERVO1_PIN, 500, 2400);
+
+  Serial.print("Servo attach result: ");
+  Serial.println(attachResult);
+
+  if (servo1.attached()) {
+    servo1.write(CLOSED_ANGLE);
+    Serial.println("Servo 1 attached successfully on GPIO18");
+  } else {
+    Serial.println("ERROR: Servo 1 attachment failed");
+  }
+  
 
   // Register routes
   server.on("/ping", HTTP_GET, handlePing);
