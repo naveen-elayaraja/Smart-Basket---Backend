@@ -9,6 +9,7 @@ from app.routes.cart import router as cart_router
 from app.routes.billing import router as billing_router
 from app.routes.transactions import router as transactions_router
 from app.routes.hardware import router as hardware_router
+from app.routes.verification import router as verification_router
 
 
 app = FastAPI(
@@ -17,16 +18,21 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://192.168.4.2:3000",
+        "http://localhost:3001",
+        "http://192.168.4.2:3001",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 
 # Product APIs
@@ -44,6 +50,7 @@ app.include_router(cart_router)
 app.include_router(billing_router)
 app.include_router(transactions_router)
 app.include_router(hardware_router) 
+app.include_router(verification_router)
 
 @app.get("/")
 def root():
